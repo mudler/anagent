@@ -1,0 +1,4 @@
+package: .
+import:
+- package: github.com/chuckpreslar/emission
+- package: github.com/go-macaron/inject
