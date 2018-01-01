@@ -46,6 +46,10 @@ type Timer struct {
 	recurring bool
 }
 
+func (t *Timer) After(ti time.Duration) {
+	t.after = ti
+}
+
 func Version() string {
 	return _VERSION
 }
@@ -123,6 +127,14 @@ func (a *Anagent) Timer(tid TimerID, ti time.Time, after time.Duration, recurrin
 	t := &Timer{handler: handler, time: ti, after: after, recurring: recurring}
 	a.timers[id] = t
 	return id
+}
+
+func (a *Anagent) RemoveTimer(id TimerID) {
+	delete(a.timers, id)
+}
+
+func (a *Anagent) GetTimer(id TimerID) *Timer {
+	return a.timers[id]
 }
 
 func (a *Anagent) SetDuration(id TimerID, after time.Duration) TimerID {
