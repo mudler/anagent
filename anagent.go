@@ -110,11 +110,23 @@ func (a *Anagent) TimerSeconds(seconds int64, recurring bool, handler Handler) T
 	return id
 }
 
-func (a *Anagent) Timer(ti time.Time, after time.Duration, recurring bool, handler Handler) TimerID {
-	id := TimerID(GetMD5Hash(time.Now().String()))
+func (a *Anagent) Timer(tid TimerID, ti time.Time, after time.Duration, recurring bool, handler Handler) TimerID {
+
+	var id TimerID
+	if tid != "" {
+		id = tid
+	} else {
+		id = TimerID(GetMD5Hash(time.Now().String()))
+	}
+
 	handler = validateAndWrapHandler(handler)
 	t := &Timer{handler: handler, time: ti, after: after, recurring: recurring}
 	a.timers[id] = t
+	return id
+}
+
+func (a *Anagent) SetDuration(id TimerID, after time.Duration) TimerID {
+	a.timers[id].after = after
 	return id
 }
 
@@ -145,7 +157,6 @@ func NewWithLogger(out io.Writer) *Anagent {
 	}
 	a.Map(a.logger)
 	a.Map(a.ee)
-	a.Map(a.timers)
 
 	return a
 }
