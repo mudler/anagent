@@ -88,6 +88,10 @@ func (a *Anagent) Handlers(handlers ...Handler) {
 	}
 }
 
+func (a *Anagent) Emitter() *emission.Emitter {
+	return a.ee
+}
+
 func (a *Anagent) ParallelHandlers(handlers ...Handler) {
 	a.parallel_handlers = make([]Handler, 0)
 	for _, handler := range handlers {
