@@ -39,6 +39,14 @@ const _VERSION = "0.1"
 type Handler interface{}
 type TimerID string
 
+func (t *TimerID) IsEmpty() bool {
+	if *t == "" {
+		return true
+	} else {
+		return false
+	}
+}
+
 type Timer struct {
 	time      time.Time
 	after     time.Duration
@@ -106,12 +114,10 @@ func (a *Anagent) Use(handler Handler) {
 }
 
 func (a *Anagent) TimerSeconds(seconds int64, recurring bool, handler Handler) TimerID {
-	id := TimerID(GetMD5Hash(time.Now().String()))
 	handler = validateAndWrapHandler(handler)
 	dt := time.Duration(seconds) * time.Second
-	t := &Timer{handler: handler, time: time.Now().Add(dt), after: dt, recurring: recurring}
-	a.timers[id] = t
-	return id
+
+	return a.Timer(TimerID(""), time.Now().Add(dt), dt, recurring, handler)
 }
 
 func (a *Anagent) Timer(tid TimerID, ti time.Time, after time.Duration, recurring bool, handler Handler) TimerID {
@@ -126,6 +132,7 @@ func (a *Anagent) Timer(tid TimerID, ti time.Time, after time.Duration, recurrin
 	handler = validateAndWrapHandler(handler)
 	t := &Timer{handler: handler, time: ti, after: after, recurring: recurring}
 	a.timers[id] = t
+
 	return id
 }
 
@@ -167,6 +174,7 @@ func NewWithLogger(out io.Writer) *Anagent {
 		Parallel: false,
 		timers:   ts,
 	}
+
 	a.Map(a.logger)
 	a.Map(a.ee)
 
@@ -230,18 +238,19 @@ func (a *Anagent) Step() {
 		return
 	}
 
-	mintime := time.Now()
-	var mintimeid TimerID
-	for timerid, t := range a.timers {
-		if t.time.Before(mintime) {
-			mintime = t.time
-			mintimeid = timerid
-		}
-	}
-	if mintimeid == "" {
+	var mintime *time.Time
+	var mintimeid *TimerID
+
+	mintimeid, mintime = a.bestTimer()
+
+	if mintimeid.IsEmpty() {
 		return
 	}
 
+	a.consumeTimer(*mintimeid, *mintime)
+}
+
+func (a *Anagent) consumeTimer(mintimeid TimerID, mintime time.Time) {
 	now := time.Now()
 
 	if mintime.After(now) {
@@ -254,4 +263,17 @@ func (a *Anagent) Step() {
 	} else {
 		delete(a.timers, mintimeid)
 	}
+}
+
+func (a *Anagent) bestTimer() (*TimerID, *time.Time) {
+	mintime := time.Now()
+	var mintimeid TimerID
+	for timerid, t := range a.timers {
+		if t.time.Before(mintime) {
+			mintime = t.time
+			mintimeid = timerid
+		}
+	}
+
+	return &mintimeid, &mintime
 }
