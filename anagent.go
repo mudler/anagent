@@ -179,6 +179,7 @@ func NewWithLogger(out io.Writer) *Anagent {
 		timers:   ts,
 	}
 
+	a.Map(a)
 	a.Map(a.logger)
 	a.Map(a.ee)
 
