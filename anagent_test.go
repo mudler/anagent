@@ -1,6 +1,7 @@
 package anagent
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -61,21 +62,10 @@ func TestUse(t *testing.T) {
 	if fired == false {
 		t.Errorf("Agent middlewares are working and can stop the loop")
 	}
-}
 
-func TestUseParallel(t *testing.T) {
-	agent := New()
-
-	fired := false
-	agent.UseParallel(func(a *Anagent) {
-		fired = true
-		a.Stop()
+	assertPanic(t, func() {
+		agent.Use("test")
 	})
-
-	agent.Start()
-	if fired == false {
-		t.Errorf("Agent middlewares are working and can stop the loop")
-	}
 }
 
 func TestTimerSeconds(t *testing.T) {
@@ -95,7 +85,7 @@ func TestTimerSeconds(t *testing.T) {
 	fired = false
 	agent.TimerSeconds(int64(3), false, func(a *Anagent) {
 		fired = true
-		a.Stop()
+		go a.Stop()
 	})
 
 	agent.Start()
@@ -107,14 +97,24 @@ func TestTimerSeconds(t *testing.T) {
 func TestRecurringTimer(t *testing.T) {
 	agent := New()
 	fired := 0
+	agent.Emitter().On("Ping", func() { fmt.Println("PING") })
 	tid := agent.AddRecurringTimerSeconds(int64(1), func(a *Anagent) {
 		fired++
+		go func() {
+			a.Lock()
+			defer a.Unlock()
+			a.Emitter().Emit("Ping")
+		}()
 		if fired > 4 {
 			a.Stop()
 		}
 	})
 
-	agent.Start()
+	agent.SetDuration(tid, time.Second)
+	assertSleep(5.0, t, func() {
+		agent.Start()
+	})
+
 	if fired != 5 {
 		t.Errorf("Agent middlewares are working and can stop the loop")
 	}

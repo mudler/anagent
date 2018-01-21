@@ -25,6 +25,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/chuckpreslar/emission"
@@ -66,16 +67,15 @@ func Version() string {
 // inject.Injector methods can be invoked to map services on a global level.
 type Anagent struct {
 	inject.Injector
+	sync.Mutex
+	handlers []Handler
+	timers   map[TimerID]*Timer
 
-	handlers          []Handler
-	parallel_handlers []Handler
-	timers            map[TimerID]*Timer
-
-	logger   *log.Logger
-	ee       *emission.Emitter
-	Parallel bool
-	Fatal    bool
-	Started  bool
+	logger        *log.Logger
+	ee            *emission.Emitter
+	Fatal         bool
+	Started       bool
+	StartedAccess *sync.Mutex
 }
 
 // Handlers sets the entire middleware stack with the given Handlers.
@@ -92,13 +92,6 @@ func (a *Anagent) Emitter() *emission.Emitter {
 	return a.ee
 }
 
-func (a *Anagent) ParallelHandlers(handlers ...Handler) {
-	a.parallel_handlers = make([]Handler, 0)
-	for _, handler := range handlers {
-		a.UseParallel(handler)
-	}
-}
-
 // validateAndWrapHandler makes sure a handler is a callable function, it panics if not.
 // When the handler is also potential to be any built-in inject.FastInvoker,
 // it wraps the handler automatically to have some performance gain.
@@ -113,6 +106,8 @@ func validateAndWrapHandler(h Handler) Handler {
 // and panics if the handler is not a callable func.
 // Middleware Handlers are invoked in the order that they are added.
 func (a *Anagent) Use(handler Handler) {
+	a.Lock()
+	defer a.Unlock()
 	handler = validateAndWrapHandler(handler)
 	a.handlers = append(a.handlers, handler)
 }
@@ -125,7 +120,6 @@ func (a *Anagent) TimerSeconds(seconds int64, recurring bool, handler Handler) T
 }
 
 func (a *Anagent) Timer(tid TimerID, ti time.Time, after time.Duration, recurring bool, handler Handler) TimerID {
-
 	var id TimerID
 	if tid != "" {
 		id = tid
@@ -161,22 +155,17 @@ func (a *Anagent) AddRecurringTimerSeconds(seconds int64, handler Handler) Timer
 	return a.TimerSeconds(seconds, true, handler)
 }
 
-func (a *Anagent) UseParallel(handler Handler) {
-	handler = validateAndWrapHandler(handler)
-	a.parallel_handlers = append(a.parallel_handlers, handler)
-}
-
 // NewWithLogger creates a bare bones Anagent instance.
 // Use this method if you want to have full control over the middleware that is used.
 // You can specify logger output writer with this function.
 func NewWithLogger(out io.Writer) *Anagent {
 	ts := make(map[TimerID]*Timer)
 	a := &Anagent{
-		Injector: inject.New(),
-		logger:   log.New(out, "[Anagent] ", log.Ldate|log.Ltime),
-		ee:       emission.NewEmitter(),
-		Parallel: false,
-		timers:   ts,
+		Injector:      inject.New(),
+		logger:        log.New(out, "[Anagent] ", log.Ldate|log.Ltime),
+		ee:            emission.NewEmitter(),
+		timers:        ts,
+		StartedAccess: &sync.Mutex{},
 	}
 
 	a.Map(a)
@@ -192,20 +181,17 @@ func New() *Anagent {
 	return NewWithLogger(os.Stdout)
 }
 
-func (a *Anagent) runAll(h *[]Handler, parallel bool) {
+func (a *Anagent) runAll() {
+
 	var i = 0
-	for i < len(*h) {
+	for i < len(a.handlers) {
+
 		var err error
-		if parallel {
 
-			go func(a *Anagent, hs *[]Handler, n int) {
-				// return and error
-				_, err = a.Invoke((*hs)[n])
-			}(a, h, i)
+		a.Lock()
+		defer a.Unlock()
 
-		} else {
-			_, err = a.Invoke((*h)[i]) // was vals
-		}
+		_, err = a.Invoke(a.handlers[i]) // was vals
 
 		if err != nil && a.Fatal {
 			panic(err)
@@ -221,23 +207,32 @@ func (a *Anagent) RunLoop() {
 	}
 }
 
+func (a *Anagent) IsStarted() bool {
+	a.StartedAccess.Lock()
+	defer a.StartedAccess.Unlock()
+	return a.Started
+}
+
 func (a *Anagent) Start() {
+
 	if a.Started == true {
 		return
 	}
 	a.Started = true
-	for a.Started {
+
+	for a.IsStarted() {
 		a.Step()
 	}
 }
 
 func (a *Anagent) Stop() {
+	a.StartedAccess.Lock()
+	defer a.StartedAccess.Unlock()
 	a.Started = false
 }
 
 func (a *Anagent) Step() {
-	a.runAll(&a.handlers, a.Parallel)
-	a.runAll(&a.parallel_handlers, true)
+	a.runAll()
 
 	if len(a.timers) == 0 {
 		return
@@ -257,12 +252,12 @@ func (a *Anagent) Step() {
 
 func (a *Anagent) consumeTimer(mintimeid TimerID, mintime time.Time) {
 	now := time.Now()
-
 	if mintime.After(now) {
 		time.Sleep(mintime.Sub(now))
 	}
 	a.Invoke(a.timers[mintimeid].handler)
-
+	a.Lock()
+	defer a.Unlock()
 	if a.timers[mintimeid].recurring == true {
 		a.timers[mintimeid].time = time.Now().Add(a.timers[mintimeid].after)
 	} else {
@@ -273,6 +268,8 @@ func (a *Anagent) consumeTimer(mintimeid TimerID, mintime time.Time) {
 func (a *Anagent) bestTimer() (*TimerID, *time.Time) {
 	mintime := time.Now()
 	var mintimeid TimerID
+	a.Lock()
+	defer a.Unlock()
 	for timerid, t := range a.timers {
 		if t.time.Before(mintime) {
 			mintime = t.time
