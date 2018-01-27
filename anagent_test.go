@@ -18,8 +18,8 @@ func TestEmitter(t *testing.T) {
 	agent := New()
 
 	fired := false
-	agent.Emitter().On("test", func() { fired = true })
-	agent.Emitter().Emit("test")
+	agent.Emitter().On("test", func(v bool) { fired = v })
+	agent.Emitter().Emit("test", true)
 	if fired == false {
 		t.Errorf("Expected event not fired")
 	}
@@ -135,6 +135,91 @@ func TestRecurringTimer(t *testing.T) {
 		t.Errorf("Agent middlewares are working and can stop the loop")
 	}
 
+}
+
+type TestTest struct {
+	Test string
+}
+
+func TestOn(t *testing.T) {
+	agent := New()
+	varr := &TestTest{Test: "W0h00"}
+	fired := 0
+	agent.Map(varr)
+	agent.On("test", func(te *TestTest) {
+		if te.Test != "W0h00" {
+			t.Errorf("Cannot access to injections :(")
+		}
+		fired++
+	})
+
+	agent.Emit("test")
+	agent.Emit("test")
+	agent.Emit("test")
+	agent.Emit("test")
+
+	if fired != 4 {
+		t.Errorf("Event not fired :(")
+	}
+}
+
+func TestOnce(t *testing.T) {
+	agent := New()
+	varr := &TestTest{Test: "Just Once!"}
+	fired := 0
+	agent.Map(varr)
+	agent.Once("test", func(te *TestTest) {
+		if te.Test != "Just Once!" {
+			t.Errorf("Cannot access to injections :(")
+		}
+		fired++
+	})
+
+	agent.Emit("test")
+	agent.Emit("test")
+	agent.Emit("test")
+	agent.Emit("test")
+
+	if fired != 1 {
+		t.Errorf("Event not fired once :(")
+	}
+}
+
+func TestEmitSync(t *testing.T) {
+	agent := New()
+	varr := &TestTest{Test: "Just Once?"}
+	fired := 0
+	agent.Map(varr)
+	agent.Once("test", func(te *TestTest) {
+		if te.Test != "Just Once?" {
+			t.Errorf("Cannot access to injections :(")
+		}
+		fired++
+	})
+	agent.Once("test", func(te *TestTest) {
+		if te.Test != "Just Once?" {
+			t.Errorf("Cannot access to injections :(")
+		}
+		fired++
+	})
+	agent.Once("test", func(te *TestTest) {
+		if te.Test != "Just Once?" {
+			t.Errorf("Cannot access to injections :(")
+		}
+		fired++
+	})
+	agent.Once("test", func(te *TestTest) {
+		if te.Test != "Just Once?" {
+			t.Errorf("Cannot access to injections :(")
+		}
+		fired++
+	})
+
+	agent.EmitSync("test")
+
+	if fired != 4 {
+		t.Errorf("Event not fired once :(")
+	}
 }
 
 func TestTimer(t *testing.T) {

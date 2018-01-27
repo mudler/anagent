@@ -32,7 +32,8 @@ import (
 	"github.com/go-macaron/inject"
 )
 
-const _VERSION = "0.1"
+// VERSION contains the Anagent version number
+const VERSION = "0.1"
 
 // Handler can be any callable function.
 // Anagent attempts to inject services into the handler's argument list,
@@ -59,15 +60,12 @@ func (t *Timer) After(ti time.Duration) {
 	t.after = ti
 }
 
-func Version() string {
-	return _VERSION
-}
-
 // Anagent represents the top level web application.
 // inject.Injector methods can be invoked to map services on a global level.
 type Anagent struct {
 	inject.Injector
 	sync.Mutex
+
 	handlers []Handler
 	timers   map[TimerID]*Timer
 
@@ -76,6 +74,26 @@ type Anagent struct {
 	Fatal         bool
 	Started       bool
 	StartedAccess *sync.Mutex
+}
+
+func (a *Anagent) On(event, listener interface{}) *Anagent {
+	a.Emitter().On(event, func() { a.Invoke(listener) })
+	return a
+}
+
+func (a *Anagent) Emit(event interface{}) *Anagent {
+	a.Emitter().Emit(event)
+	return a
+}
+
+func (a *Anagent) Once(event, listener interface{}) *Anagent {
+	a.Emitter().Once(event, func() { a.Invoke(listener) })
+	return a
+}
+
+func (a *Anagent) EmitSync(event interface{}) *Anagent {
+	a.Emitter().EmitSync(event)
+	return a
 }
 
 // Handlers sets the entire middleware stack with the given Handlers.
