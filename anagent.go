@@ -39,16 +39,27 @@ const VERSION = "0.1"
 // Anagent attempts to inject services into the handler's argument list,
 // and panics if an argument could not be fullfilled via dependency injection.
 type Handler interface{}
+
+// TimerID is a string that represent the timers ID,
+// it is used so we can access to them later or modify them
+// during the agent execution.
 type TimerID string
 
+// IsEmpty returns a boolean indicating if the timer
+// is set or not
 func (t *TimerID) IsEmpty() bool {
 	if *t == "" {
 		return true
-	} else {
-		return false
 	}
+
+	return false
 }
 
+// Timer represent the structure that holds the
+// informations of the Timer
+// timer it's a time.Time structure that defines when the timer
+// should be fired, after contains the time.Duration of the
+// recurring timer.
 type Timer struct {
 	time      time.Time
 	after     time.Duration
@@ -56,11 +67,13 @@ type Timer struct {
 	recurring bool
 }
 
+// After receives a time.Duration as arguments, and sets the
+// timer recurring time.
 func (t *Timer) After(ti time.Duration) {
 	t.after = ti
 }
 
-// Anagent represents the top level web application.
+// Anagent represents the top level application.
 // inject.Injector methods can be invoked to map services on a global level.
 type Anagent struct {
 	inject.Injector
@@ -76,21 +89,29 @@ type Anagent struct {
 	StartedAccess *sync.Mutex
 }
 
+// On Binds a callback to an event, mapping the arguments on a global level
 func (a *Anagent) On(event, listener interface{}) *Anagent {
 	a.Emitter().On(event, func() { a.Invoke(listener) })
 	return a
 }
 
+// Emit Emits an event, it does accept only the event as argument, since
+// the callback will have access to the service mapped by the injector
 func (a *Anagent) Emit(event interface{}) *Anagent {
 	a.Emitter().Emit(event)
 	return a
 }
 
+// Once Binds a callback to an event, mapping the arguments on a global level
+// It is fired only once.
 func (a *Anagent) Once(event, listener interface{}) *Anagent {
 	a.Emitter().Once(event, func() { a.Invoke(listener) })
 	return a
 }
 
+// EmitSync Emits an event in a syncronized manner,
+// it does accept only the event as argument, since
+// the callback will have access to the service mapped by the injector
 func (a *Anagent) EmitSync(event interface{}) *Anagent {
 	a.Emitter().EmitSync(event)
 	return a
@@ -106,6 +127,9 @@ func (a *Anagent) Handlers(handlers ...Handler) {
 	}
 }
 
+// Emitter returns the internal *emission.Emitter used structure
+// use this to access directly to the Emitter, and override
+// the dependency-injection features
 func (a *Anagent) Emitter() *emission.Emitter {
 	return a.ee
 }
@@ -130,6 +154,10 @@ func (a *Anagent) Use(handler Handler) {
 	a.handlers = append(a.handlers, handler)
 }
 
+// TimerSeconds is used to set a timer, that will fire after the seconds supplied.
+// It requires seconds supplied as int64
+// a bool indicating if it is recurring or not,
+// and at the end the callback to be fired at the desired time.
 func (a *Anagent) TimerSeconds(seconds int64, recurring bool, handler Handler) TimerID {
 	handler = validateAndWrapHandler(handler)
 	dt := time.Duration(seconds) * time.Second
@@ -137,6 +165,14 @@ func (a *Anagent) TimerSeconds(seconds int64, recurring bool, handler Handler) T
 	return a.Timer(TimerID(""), time.Now().Add(dt), dt, recurring, handler)
 }
 
+// Timer is used to set a generic timer.
+// You have to supply by yourself all the options that normally are
+// exposed with other functions.
+// It requires a TimerID (if empty is supplied, it is created for you),
+// a time.Time indicating when the timer have to be fired,
+// a time.Duration indicating the recurring span
+// a boolean to set it as recurring or not
+// and at the end the callback to be fired at the desired time.
 func (a *Anagent) Timer(tid TimerID, ti time.Time, after time.Duration, recurring bool, handler Handler) TimerID {
 	var id TimerID
 	if tid != "" {
@@ -152,23 +188,37 @@ func (a *Anagent) Timer(tid TimerID, ti time.Time, after time.Duration, recurrin
 	return id
 }
 
+// RemoveTimer is used to set a remove a timer from the loop.
+// It requires a TimerID
 func (a *Anagent) RemoveTimer(id TimerID) {
 	delete(a.timers, id)
 }
 
+// GetTimer is used to set a get a timer from the loop.
+// It requires a TimerID
 func (a *Anagent) GetTimer(id TimerID) *Timer {
 	return a.timers[id]
 }
 
+// SetDuration is used to change the duration of a timer.
+// It requires a TimerID and a time.Duration
 func (a *Anagent) SetDuration(id TimerID, after time.Duration) TimerID {
 	a.timers[id].after = after
 	return id
 }
 
+// AddTimerSeconds is used to set a non recurring timer,
+// that will fire after the seconds supplied.
+// It requires seconds supplied as int64
+// and at the end the callback to be fired at the desired time.
 func (a *Anagent) AddTimerSeconds(seconds int64, handler Handler) TimerID {
 	return a.TimerSeconds(seconds, false, handler)
 }
 
+// AddRecurringTimerSeconds is used to set a recurring timer,
+// that will fire after the seconds supplied.
+// It requires seconds supplied as int64
+// and at the end the callback to be fired at the desired time.
 func (a *Anagent) AddRecurringTimerSeconds(seconds int64, handler Handler) TimerID {
 	return a.TimerSeconds(seconds, true, handler)
 }
@@ -219,18 +269,21 @@ func (a *Anagent) runAll() {
 	}
 }
 
+// RunLoop starts a loop that never returns
 func (a *Anagent) RunLoop() {
 	for {
 		a.Step()
 	}
 }
 
+// IsStarted returns a boolean indicating if we started the loop with Start()
 func (a *Anagent) IsStarted() bool {
 	a.StartedAccess.Lock()
 	defer a.StartedAccess.Unlock()
 	return a.Started
 }
 
+// Start starts the agent loop and never returns. ( unless you call Stop() )
 func (a *Anagent) Start() {
 
 	if a.Started == true {
@@ -243,12 +296,17 @@ func (a *Anagent) Start() {
 	}
 }
 
+// Stop stops the agent loop, in case Start() was called.
 func (a *Anagent) Stop() {
 	a.StartedAccess.Lock()
 	defer a.StartedAccess.Unlock()
 	a.Started = false
 }
 
+// Step executes an agent step.
+// It is idempotent, and even if there are delays in timings
+// events gets executed in order as a best-effort in
+// respecting setted timers.
 func (a *Anagent) Step() {
 	a.runAll()
 

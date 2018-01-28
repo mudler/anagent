@@ -1,4 +1,5 @@
-# [![Build Status](https://travis-ci.org/mudler/anagent.svg?branch=master)](https://travis-ci.org/mudler/anagent) [![codecov](https://codecov.io/gh/mudler/anagent/branch/master/graph/badge.svg)](https://codecov.io/gh/mudler/anagent)  Anagent
+# Anagent [![Build Status](https://travis-ci.org/mudler/anagent.svg?branch=master)](https://travis-ci.org/mudler/anagent) [![codecov](https://codecov.io/gh/mudler/anagent/branch/master/graph/badge.svg)](https://codecov.io/gh/mudler/anagent) [![Go Report Card](https://goreportcard.com/badge/github.com/mudler/anagent)](https://goreportcard.com/report/github.com/mudler/anagent) [![godoc](https://godoc.org/github.com/mudler/anagent?status.svg)](http://godoc.org/github.com/mudler/anagent)
+
 Minimalistic, pluggable Golang evloop/timer handler with dependency-injection - based on [codegangsta/inject](github.com/codegangsta/inject) - [go-macaron/inject](github.com/go-macaron/inject) and [chuckpreslar/emission](https://github.com/chuckpreslar/emission).
 
 *Anagent* is a lightweight library that allows you to plug inside to other event loops, or allows you to handle and create your own within your application - leaving the control to you.

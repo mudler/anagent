@@ -25,6 +25,8 @@ import (
 	"encoding/hex"
 )
 
+// GetMD5Hash is a utility function to get MD5 digest
+// of the supplied string.
 func GetMD5Hash(text string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(text))
