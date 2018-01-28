@@ -29,7 +29,7 @@ import (
 	"time"
 
 	"github.com/chuckpreslar/emission"
-	"github.com/go-macaron/inject"
+	"github.com/codegangsta/inject"
 )
 
 // VERSION contains the Anagent version number
