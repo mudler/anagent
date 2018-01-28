@@ -37,7 +37,7 @@ const VERSION = "0.1"
 
 // Handler can be any callable function.
 // Anagent attempts to inject services into the handler's argument list,
-// and panics if an argument could not be fullfilled via dependency injection.
+// and panics if an argument could not be fulfilled via dependency injection.
 type Handler interface{}
 
 // TimerID is a string that represent the timers ID,
