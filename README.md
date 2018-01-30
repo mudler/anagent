@@ -10,6 +10,7 @@ It comes with dependency-injection from codegangsta/inject, and it's also a soft
 
 ### Event Emitter with Dependency injection
 
+```go
     package main
 
     import (
@@ -34,11 +35,13 @@ It comes with dependency-injection from codegangsta/inject, and it's also a soft
 
     	agent.Emit("test")
     }
+```
 
 What happened here? we mapped our structure instance (```TestTest```) inside the agent with (```agent.Map()```), and all fired events can access to them.
 
 ### Timer / Reactor
 
+```go
     package main
 
     import "github.com/mudler/anagent"
@@ -63,7 +66,7 @@ What happened here? we mapped our structure instance (```TestTest```) inside the
 
             agent.Start() // Loops here and never returns
     }
-
+ ```
 
 The code portion will start and wait for 3 seconds, then it will execute the callback (not recurring, that's why the ```false```) that will fire a custom event defined before (note, it's not using the dependency-injection capabilities, thus it's accessing the emitter handler directly with ```agent.Emitter()```).
 
@@ -77,6 +80,7 @@ After the event is fired, the timer stops the eventloop (```a.Stop()```), so the
 It is often in other framework to use loop patterns, as example in framework for game development, network agents, and such.
 We can hook into other loops, and run the agent Step function, so we can still leverage the evloop functionalities.
 
+```go
     package main
 
     import "github.com/mudler/anagent"
@@ -108,3 +112,4 @@ We can hook into other loops, and run the agent Step function, so we can still l
     		agent.Step()
     	}
     }
+ ```
