@@ -23,6 +23,7 @@ package anagent
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"math/rand"
 )
 
 // GetMD5Hash is a utility function to get MD5 digest
@@ -31,4 +32,15 @@ func GetMD5Hash(text string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(text))
 	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func RandTimer(m map[TimerID]*Timer) (TimerID, *Timer) {
+	i := rand.Intn(len(m))
+	for k := range m {
+		if i == 0 {
+			return k, m[k]
+		}
+		i--
+	}
+	panic("unreachable")
 }

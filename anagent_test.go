@@ -3,6 +3,7 @@ package anagent
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -66,6 +67,33 @@ func TestUse(t *testing.T) {
 	assertPanic(t, func() {
 		agent.Use("test")
 	})
+}
+
+func TestAfter(t *testing.T) {
+	agent := New()
+	triggered := 0
+
+	tid := agent.AddRecurringTimerSeconds(int64(1), func() {
+		triggered++
+	})
+
+	agent.AddRecurringTimerSeconds(int64(3), func(a *Anagent) {
+		timer := a.GetTimer(tid)
+		timer.After(time.Duration(2 * time.Second))
+	})
+
+	agent.AddRecurringTimerSeconds(int64(6), func(a *Anagent) {
+		timer := a.GetTimer(tid)
+		if timer.after != time.Duration(2*time.Second) {
+			t.Errorf("Timer was not set by the previous timer")
+		}
+		if triggered != 4 {
+			t.Errorf("Timer was fired in not expected order! " + strconv.Itoa(triggered))
+		}
+		a.Stop()
+	})
+
+	agent.Start()
 }
 
 func TestTimerSeconds(t *testing.T) {

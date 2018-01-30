@@ -45,16 +45,6 @@ type Handler interface{}
 // during the agent execution.
 type TimerID string
 
-// IsEmpty returns a boolean indicating if the timer
-// is set or not
-func (t *TimerID) IsEmpty() bool {
-	if *t == "" {
-		return true
-	}
-
-	return false
-}
-
 // Timer represent the structure that holds the
 // informations of the Timer
 // timer it's a time.Time structure that defines when the timer
@@ -319,31 +309,33 @@ func (a *Anagent) Step() {
 
 	mintimeid, mintime = a.bestTimer()
 
-	if mintimeid.IsEmpty() {
-		return
-	}
-
-	a.consumeTimer(*mintimeid, *mintime)
+	a.consumeTimer(mintimeid, mintime)
 }
 
-func (a *Anagent) consumeTimer(mintimeid TimerID, mintime time.Time) {
+func (a *Anagent) consumeTimer(mintimeid *TimerID, mintime *time.Time) {
 	now := time.Now()
+
 	if mintime.After(now) {
 		time.Sleep(mintime.Sub(now))
 	}
-	a.Invoke(a.timers[mintimeid].handler)
+
+	a.Invoke(a.timers[*mintimeid].handler)
 	a.Lock()
 	defer a.Unlock()
-	if a.timers[mintimeid].recurring == true {
-		a.timers[mintimeid].time = time.Now().Add(a.timers[mintimeid].after)
+	if a.timers[*mintimeid].recurring == true {
+		a.timers[*mintimeid].time = time.Now().Add(a.timers[*mintimeid].after)
 	} else {
-		delete(a.timers, mintimeid)
+		delete(a.timers, *mintimeid)
 	}
 }
 
 func (a *Anagent) bestTimer() (*TimerID, *time.Time) {
-	mintime := time.Now()
 	var mintimeid TimerID
+	var mintime time.Time
+
+	mintimeid, timer := RandTimer(a.timers)
+	mintime = timer.time
+
 	a.Lock()
 	defer a.Unlock()
 	for timerid, t := range a.timers {
