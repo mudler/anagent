@@ -304,12 +304,7 @@ func (a *Anagent) Step() {
 		return
 	}
 
-	var mintime *time.Time
-	var mintimeid *TimerID
-
-	mintimeid, mintime = a.bestTimer()
-
-	a.consumeTimer(mintimeid, mintime)
+	a.consumeTimer(a.bestTimer())
 }
 
 func (a *Anagent) consumeTimer(mintimeid *TimerID, mintime *time.Time) {
@@ -330,14 +325,12 @@ func (a *Anagent) consumeTimer(mintimeid *TimerID, mintime *time.Time) {
 }
 
 func (a *Anagent) bestTimer() (*TimerID, *time.Time) {
-	var mintimeid TimerID
-	var mintime time.Time
-
 	mintimeid, timer := RandTimer(a.timers)
-	mintime = timer.time
+	mintime := timer.time
 
 	a.Lock()
 	defer a.Unlock()
+
 	for timerid, t := range a.timers {
 		if t.time.Before(mintime) {
 			mintime = t.time
