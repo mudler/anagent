@@ -36,11 +36,17 @@ func GetMD5Hash(text string) string {
 
 func RandTimer(m map[TimerID]*Timer) (TimerID, *Timer) {
 	i := rand.Intn(len(m))
+	var tid TimerID
+	var timer Timer
+
 	for k := range m {
 		if i == 0 {
-			return k, m[k]
+			tid = k
+			timer = *m[k]
+			break
 		}
 		i--
 	}
-	panic("unreachable")
+
+	return tid, &timer
 }

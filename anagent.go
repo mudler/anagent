@@ -72,10 +72,12 @@ type Anagent struct {
 	handlers []Handler
 	timers   map[TimerID]*Timer
 
-	logger        *log.Logger
-	ee            *emission.Emitter
-	Fatal         bool
+	logger *log.Logger
+	ee     *emission.Emitter
+
+	// Fatal         bool
 	Started       bool
+	BusyLoop      bool
 	StartedAccess *sync.Mutex
 }
 
@@ -132,6 +134,12 @@ func validateAndWrapHandler(h Handler) Handler {
 		panic("Anagent handler must be a callable function")
 	}
 	return h
+}
+
+// Next adds a middleware Handler to the next tick,
+// and removes it once executed.
+func (a *Anagent) Next(handler Handler) {
+	a.AddTimerSeconds(0, handler)
 }
 
 // Use adds a middleware Handler to the stack,
@@ -219,6 +227,7 @@ func (a *Anagent) AddRecurringTimerSeconds(seconds int64, handler Handler) Timer
 func NewWithLogger(out io.Writer) *Anagent {
 	ts := make(map[TimerID]*Timer)
 	a := &Anagent{
+		BusyLoop:      false,
 		Injector:      inject.New(),
 		logger:        log.New(out, "[Anagent] ", log.Ldate|log.Ltime),
 		ee:            emission.NewEmitter(),
@@ -240,20 +249,19 @@ func New() *Anagent {
 }
 
 func (a *Anagent) runAll() {
-
+	a.Lock()
+	defer a.Unlock()
 	var i = 0
+
 	for i < len(a.handlers) {
+		//var err error
 
-		var err error
+		//_, err = a.Invoke(a.handlers[i]) // was vals
 
-		a.Lock()
-		defer a.Unlock()
-
-		_, err = a.Invoke(a.handlers[i]) // was vals
-
-		if err != nil && a.Fatal {
-			panic(err)
-		}
+		//if err != nil && a.Fatal {
+		//	panic(err)
+		//}
+		a.Invoke(a.handlers[i])
 
 		i++
 	}
@@ -311,7 +319,11 @@ func (a *Anagent) consumeTimer(mintimeid *TimerID, mintime *time.Time) {
 	now := time.Now()
 
 	if mintime.After(now) {
-		time.Sleep(mintime.Sub(now))
+		if !a.BusyLoop {
+			time.Sleep(mintime.Sub(now))
+		} else {
+			return
+		}
 	}
 
 	a.Invoke(a.timers[*mintimeid].handler)

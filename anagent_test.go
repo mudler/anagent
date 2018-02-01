@@ -273,6 +273,36 @@ func TestTimer(t *testing.T) {
 	}
 }
 
+func TestNext(t *testing.T) {
+
+	agent := New()
+	agent.BusyLoop = true
+	fired := 0
+	loop := 0
+
+	agent.Use(func(a *Anagent) {
+		loop++
+	})
+
+	agent.Next(func(a *Anagent) {
+		fired++
+	})
+
+	agent.AddTimerSeconds(int64(3), func(a *Anagent) {
+		a.Stop()
+	})
+
+	agent.Start()
+
+	if fired != 1 {
+		t.Errorf("Next is removed from the loop")
+	}
+
+	if fired >= loop {
+		t.Errorf("Loop had to run for long ", loop)
+	}
+}
+
 func assertPanic(t *testing.T, f func()) {
 	defer func() {
 		if r := recover(); r == nil {
