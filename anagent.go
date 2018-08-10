@@ -21,9 +21,6 @@
 package anagent
 
 import (
-	"io"
-	"log"
-	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -72,8 +69,7 @@ type Anagent struct {
 	handlers []Handler
 	timers   map[TimerID]*Timer
 
-	logger *log.Logger
-	ee     *emission.Emitter
+	ee *emission.Emitter
 
 	// Fatal         bool
 	Started       bool
@@ -221,31 +217,22 @@ func (a *Anagent) AddRecurringTimerSeconds(seconds int64, handler Handler) Timer
 	return a.TimerSeconds(seconds, true, handler)
 }
 
-// NewWithLogger creates a bare bones Anagent instance.
+// New creates a bare bones Anagent instance.
 // Use this method if you want to have full control over the middleware that is used.
-// You can specify logger output writer with this function.
-func NewWithLogger(out io.Writer) *Anagent {
+func New() *Anagent {
 	ts := make(map[TimerID]*Timer)
 	a := &Anagent{
 		BusyLoop:      false,
 		Injector:      inject.New(),
-		logger:        log.New(out, "[Anagent] ", log.Ldate|log.Ltime),
 		ee:            emission.NewEmitter(),
 		timers:        ts,
 		StartedAccess: &sync.Mutex{},
 	}
 
 	a.Map(a)
-	a.Map(a.logger)
 	a.Map(a.ee)
 
 	return a
-}
-
-// New creates a bare bones Anagent instance.
-// Use this method if you want to have full control over the middleware that is used.
-func New() *Anagent {
-	return NewWithLogger(os.Stdout)
 }
 
 func (a *Anagent) runAll() {

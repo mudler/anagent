@@ -295,11 +295,11 @@ func TestNext(t *testing.T) {
 	agent.Start()
 
 	if fired != 1 {
-		t.Errorf("Next is removed from the loop")
+		t.Error("Next is removed from the loop")
 	}
 
 	if fired >= loop {
-		t.Errorf("Loop had to run for long ", loop)
+		t.Error("Loop had to run for long ", loop)
 	}
 }
 
